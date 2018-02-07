@@ -1,0 +1,76 @@
+{
+    "config": {
+        "ntp-connect":{
+            "help": "0:disable 1:enable",
+            "value": "0"
+        },
+        "ntp-address": {
+            "help": "NTP SERVER ADDRESS (Required only for ntp-connect=1)",
+            "value": "\"2.pool.ntp.org\""
+        },
+        "ntp-port": {
+            "help": "NTP SERVER PORT (Required only for ntp-connect=1)",
+            "value": "123"
+        },
+        "ftp-connect":{
+            "help": "0:disable 1:enable",
+            "value": "0"
+        },
+        "ftp-ip-address": {
+            "help": "FTP IP ADDRESS (Required only for ftp-connect=1)",
+            "value": "\"192.168.0.1\""
+        },
+        "ftp-port": {
+            "help": "FTP PORT (Required only for ftp-connect=1)",
+            "value": "21"
+        },
+        "ftp-user": {
+            "help": "FTP User Name (Required only for ftp-connect=1)",
+            "value": "\"User\""
+        },
+        "ftp-password": {
+            "help": "FTP Password (Required only for ftp-connect=1)",
+            "value": "\"Password\""
+        },
+        "ftp-directory": {
+            "help": "FTP Directory (Required only for ftp-connect=1)",
+            "value": "\"signage/image\""
+        },
+        "network-interface": {
+            "help": "Options are ETHERNET,WIFI_BP3595 (Required only for ftp-connect=1 or ntp-connect=1)",
+            "value": "ETHERNET"
+        },
+        "wifi-ssid": {
+            "help": "WiFi SSID (Required only for network-interface=wifi)",
+            "value": "\"SSID\""
+        },
+        "wifi-password": {
+            "help": "WiFi Password (Required only for network-interface=wifi)",
+            "value": "\"Password\""
+        },
+        "wifi-security": {
+            "help": "WiFi Security (Required only for network-interface=wifi)",
+            "value": "NSAPI_SECURITY_WPA2"
+        },
+        "camera":{
+            "help": "0:disable 1:enable",
+            "value": "0"
+        },
+        "lcd":{
+            "help": "0:disable 1:enable",
+            "value": "1"
+        },
+        "lcd-type":{
+            "help": "Options are GR_PEACH_4_3INCH_SHIELD, GR_PEACH_7_1INCH_SHIELD, GR_PEACH_RSK_TFT, GR_PEACH_DISPLAY_SHIELD, GR_LYCHEE_LCD",
+            "value": "GR_PEACH_DISPLAY_SHIELD"
+        },
+        "usb-host-ch":{
+            "help": "(for GR-PEACH) 0:ch0 1:ch1",
+            "value": "0"
+        },
+        "audio-camera-shield":{
+            "help": "(for GR-PEACH) 0:not use 1:use",
+            "value": "0"
+        }
+    }
+}
