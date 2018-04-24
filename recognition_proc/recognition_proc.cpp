@@ -70,6 +70,8 @@ static int female_total[10] = {0};
 static bool human_num_change = false;
 static AsciiFont ascii_font_human(user_frame_buffer_result, DISP_PIXEL_WIDTH, DISP_PIXEL_HEIGHT,
                                   RESULT_BUFFER_STRIDE, RESULT_BUFFER_BYTE_PER_PIXEL, 0x000000f0);
+static int image_pos_x;
+static int image_pos_y;
 
 /****** Image Recognition ******/
 extern "C" int UART_SendData(int inDataSize, UINT8 *inData) {
@@ -116,9 +118,9 @@ static void EraseImage(void) {
         return;
     }
 
-    for (int i = 0; i < (DISP_PIXEL_HEIGHT * DISP_PIXEL_WIDTH); i++) {
+    for (int i = 0; i < (IMAGE_HEIGHT * RESULT_BUFFER_STRIDE); i += 2) {
         user_frame_buffer_result[i+0] = 0x00;
-        user_frame_buffer_result[i+1] = 0x00;
+        user_frame_buffer_result[i+1] = 0xf0;
     }
 }
 
@@ -305,10 +307,13 @@ void init_recognition_layers(DisplayBase * p_display) {
 
     memset(user_frame_buffer_result, 0, sizeof(user_frame_buffer_result));
 
+    image_pos_x = setting.image_pos_x;
+    image_pos_y = setting.image_pos_y;
+
     /* The layer by which the image recognition is drawn */
-    rect.vs = setting.image_pos_y;
+    rect.vs = image_pos_y;
     rect.vw = DISP_PIXEL_HEIGHT;
-    rect.hs = setting.image_pos_x;
+    rect.hs = image_pos_x;
     rect.hw = DISP_PIXEL_WIDTH;
     p_display->Graphics_Read_Setting(
         DisplayBase::GRAPHICS_LAYER_2,
@@ -371,10 +376,6 @@ void recognition_task(DisplayBase * p_display) {
         serial.baud(921600);
         setting_req = true;
 
-        if (setting.disp_human_num == 1) {
-            DrawHumanNum();
-        }
-
         do {
             /* Get Model and Version */
             ret = HVC_GetVersion(UART_SETTING_TIMEOUT, &version, &status);
@@ -390,6 +391,23 @@ void recognition_task(DisplayBase * p_display) {
                 /* Execute Setting */
                 if (setting_req) {
                     setting_req = false;
+
+                    if (setting.disp_image == 0) {
+                        memset(user_frame_buffer_result, 0, sizeof(user_frame_buffer_result));
+                    } else {
+                        if ((image_pos_x != setting.image_pos_x) || (image_pos_y != setting.image_pos_y)) {
+                            image_pos_x = setting.image_pos_x;
+                            image_pos_y = setting.image_pos_y;
+                            // TO DO
+                        }
+                    }
+
+                    if (setting.disp_human_num == 0) {
+                        memset(user_frame_buffer_result, 0, sizeof(user_frame_buffer_result));
+                    } else {
+                        DrawHumanNum();
+                    }
+
                     /* Set Camera Angle */
                     ret = HVC_SetCameraAngle(UART_SETTING_TIMEOUT, SENSOR_ROLL_ANGLE_DEFAULT, &status);
                     if ((ret != 0) || (status != 0)) {
@@ -445,8 +463,10 @@ void recognition_task(DisplayBase * p_display) {
                 }
                 if (setting.disp_image == 0) {
                     imageNo = HVC_EXECUTE_IMAGE_NONE;
-                } else {
+                } else if (setting.disp_image == 1) {
                     imageNo = HVC_EXECUTE_IMAGE_QVGA_HALF;
+                } else {
+                    imageNo = HVC_EXECUTE_IMAGE_NONE;
                 }
                 ret = HVC_ExecuteEx(UART_EXECUTE_TIMEOUT, execFlag, imageNo, pHVCResult, &status);
                 if ((ret == 0) && (status == 0)) {

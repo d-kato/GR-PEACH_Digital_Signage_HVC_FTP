@@ -788,7 +788,9 @@ int main(void) {
             Thread::wait(5);
         } else {
             Thread::wait(50);
-            if (wait_time < 100000) {
+            if ((file_id_now == 0) && (total_file_num <= 1)) {
+                /* do nothing */
+            } else if (wait_time < 100000) {
                 wait_time += 50;
             }
         }

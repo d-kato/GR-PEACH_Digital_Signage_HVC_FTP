@@ -36,12 +36,38 @@ void SetMountPath(const char * mount_path) {
     strcpy(mount_path_cpy, mount_path);
 }
 
+uint32_t MemoryAnalysis(char * src_buf, const char *delim) {
+    uint32_t file_index = 0;
+    FILE* fp;
+    char file_path[64];
+    char* token = src_buf;
+    char* savept = NULL;
+
+    m_lpJpegfiles.clear();
+
+    while (token) {
+        token = strtok_r(token, delim, &savept);
+        if (token != NULL) {
+            if (strstr(token,".jpg")) {
+                sprintf(file_path, "%s/%s", mount_path_cpy, token);
+                fp = fopen(file_path, "r");
+                if (fp != NULL) {
+                    fclose(fp);
+                    m_lpJpegfiles[file_index] = token;
+                    file_index++;
+                }
+            }
+            token = savept;
+        }
+    }
+
+    return file_index;
+}
+
 uint32_t FileAnalysis(const char * index_file) {
     uint32_t file_index = 0;
     FILE* fp;
     char file_path[64];
-
-    m_lpJpegfiles.clear();
 
     sprintf(file_path, "%s/%s", mount_path_cpy, index_file);
     fp = fopen(file_path, "r");
@@ -60,29 +86,14 @@ uint32_t FileAnalysis(const char * index_file) {
         fread(work_buff, sizeof(char), 1024, fp);
         fclose(fp);
 
-        token = work_buff;
-        savept = NULL;
-        while (token) {
-            token = strtok_r(token,"\r\n", &savept);
-            if (token != NULL) {
-                if (strstr(token,".jpg")) {
-                    sprintf(file_path, "%s/%s", mount_path_cpy, token);
-                    fp = fopen(file_path, "r");
-                    if (fp != NULL) {
-                        fclose(fp);
-                        m_lpJpegfiles[file_index] = token;
-                        file_index++;
-                    }
-                }
-                token = savept;
-            }
-        }
+        file_index = MemoryAnalysis(work_buff, "\r\n");
         DrawDebugLog("done\r\n");
         delete[] work_buff;
     } else {
         DIR  * d;
         struct dirent * p;
 
+        m_lpJpegfiles.clear();
         DrawDebugLog("\"%s\" was not found\r\n", index_file);
         sprintf(file_path, "%s/", mount_path_cpy);
         d = opendir(file_path);
