@@ -8,6 +8,9 @@
 #include "DisplayEfect.h"
 #include "EasyAttach_CameraAndLCD.h"
 #include "DisplayDebugLog.h"
+#if(1) // feature-mbed-connector
+#include "mbed_client_proc.h"
+#endif
 
 #define UART_SETTING_TIMEOUT              1000            /* HVC setting command signal timeout period */
 #define UART_EXECUTE_TIMEOUT               300            /* HVC execute command signal timeout period */
@@ -72,6 +75,10 @@ static AsciiFont ascii_font_human(user_frame_buffer_result, DISP_PIXEL_WIDTH, DI
                                   RESULT_BUFFER_STRIDE, RESULT_BUFFER_BYTE_PER_PIXEL, 0x000000f0);
 static int image_pos_x;
 static int image_pos_y;
+
+#if(1) // feature-mbed-connector
+static char str_client[256];
+#endif
 
 /****** Image Recognition ******/
 extern "C" int UART_SendData(int inDataSize, UINT8 *inData) {
@@ -346,6 +353,12 @@ void recognition_task(DisplayBase * p_display) {
     char Str_disp[64];
     int  Str_len;
     INT32 TrackingID;
+#if(1) // feature-mbed-connector
+    bool update_data = false;
+    bool hvc_send = false;
+    int wk_stb_retrycount = 0;
+    str_client[0] = '\0';
+#endif
 
     int face_cnt = 0;
     bool face_in = false;
@@ -496,8 +509,14 @@ void recognition_task(DisplayBase * p_display) {
                                     if (pSTBFaceResult[i].age.status >= STB_STATUS_COMPLETE) {
                                         pHVCResult->fdResult.fcResult[nIndex].ageResult.age = pSTBFaceResult[i].age.value;
                                         pHVCResult->fdResult.fcResult[nIndex].ageResult.confidence += 10000; // Complete
+#if(1) // feature-mbed-connector
+                                        wk_stb_retrycount = setting.stb_retrycount;
+#endif
                                         if (pSTBFaceResult[i].age.status == STB_STATUS_COMPLETE) {
                                             pHVCResult->fdResult.fcResult[nIndex].ageResult.confidence += 10000; // Just Complete
+#if(1) // feature-mbed-connector
+                                            update_data = true;
+#endif
                                         }
                                     }
                                 }
@@ -543,6 +562,11 @@ void recognition_task(DisplayBase * p_display) {
                                     }
                                 }
                             }
+#if(1) // feature-mbed-connector
+                            if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                strcat(str_client, "{");
+                            }
+#endif
 
                             if (setting.disp_tracking_id != 0) {
                                 TrackingID = 0;
@@ -557,11 +581,26 @@ void recognition_task(DisplayBase * p_display) {
                                     /* Recognition */
                                     if (pHVCResult->fdResult.fcResult[i].recognitionResult.uid < 0) {
                                         sprintf(Str_disp, "ID:%d", TrackingID);
+#if(1) // feature-mbed-connector
+                                        if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                            sprintf(&str_client[strlen(str_client)], "%d,", TrackingID);
+                                        }
+#endif
                                     } else {
                                         sprintf(Str_disp, "USER%03d", pHVCResult->fdResult.fcResult[i].recognitionResult.uid + 1);
+#if(1) // feature-mbed-connector
+                                        if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                            sprintf(&str_client[strlen(str_client)], "USER%03d,", pHVCResult->fdResult.fcResult[i].recognitionResult.uid + 1);
+                                        }
+#endif
                                     }
                                 } else {
                                     sprintf(Str_disp, "ID:%d", TrackingID);
+#if(1) // feature-mbed-connector
+                                    if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                        sprintf(&str_client[strlen(str_client)], "%d,", TrackingID);
+                                    }
+#endif
                                 }
                                 DrawString(Str_disp, 0x0000f0ff);
                             }
@@ -570,6 +609,11 @@ void recognition_task(DisplayBase * p_display) {
                                 memset(Str_disp, 0, sizeof(Str_disp));
                                 sprintf(Str_disp, "size:%d", pHVCResult->fdResult.fcResult[i].dtResult.size);
                                 DrawString(Str_disp, 0x0000f0ff);
+#if(1) // feature-mbed-connector
+                                if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                    sprintf(&str_client[strlen(str_client)], "%d,", pHVCResult->fdResult.fcResult[i].dtResult.size);
+                                }
+#endif
                             }
 
                             Str_len = 0;
@@ -580,9 +624,19 @@ void recognition_task(DisplayBase * p_display) {
                                 if (-128 != pHVCResult->fdResult.fcResult[i].genderResult.gender) {
                                     if (1 == pHVCResult->fdResult.fcResult[i].genderResult.gender) {
                                         sprintf(&Str_disp[Str_len], "Male");
+#if(1) // feature-mbed-connector
+                                        if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                            sprintf(&str_client[strlen(str_client)], "M,");
+                                        }
+#endif
                                         colour = 0x0000fff4;
                                     } else {
                                         sprintf(&Str_disp[Str_len], "Female");
+#if(1) // feature-mbed-connector
+                                        if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                            sprintf(&str_client[strlen(str_client)], "F,");
+                                        }
+#endif
                                         colour = 0x00006dff;
                                     }
                                 }
@@ -596,6 +650,11 @@ void recognition_task(DisplayBase * p_display) {
                                     if (pHVCResult->fdResult.fcResult[i].ageResult.confidence < 20000) {
                                         strcat(Str_disp, " (?)");
                                     }
+#if(1) // feature-mbed-connector
+                                    if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                        sprintf(&str_client[strlen(str_client)], "%d,", pHVCResult->fdResult.fcResult[i].ageResult.age);
+                                    }
+#endif
                                     if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 30000) {
                                         // Just Complete
                                         if (pHVCResult->fdResult.fcResult[i].genderResult.gender == 1) {
@@ -627,10 +686,38 @@ void recognition_task(DisplayBase * p_display) {
                                         default: colour = 0x0000ffff; break;  /* white */
                                     }
                                     DrawString(pExStr[pHVCResult->fdResult.fcResult[i].expressionResult.topExpression], colour);
+#if(1) // feature-mbed-connector
+                                    if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                        strcat(str_client, pExStr[pHVCResult->fdResult.fcResult[i].expressionResult.topExpression]);
+                                    }
+#endif
                                 }
                             }
+#if(1) // feature-mbed-connector
+                            if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
+                                strcat(str_client, "}");
+                            }
+#endif
                         }
                     }
+#if(1) // feature-mbed-connector
+                    if (update_data) {
+                        update_data = false;
+//                        printf("%s\r\n", str_client);  // for debug
+                        set_hvc_result(str_client);
+                        hvc_send = true;
+                    }
+                    str_client[0] = '\0';
+                    if (hvc_send != false) {
+                        if (wk_stb_retrycount > 0) {
+                            wk_stb_retrycount--;
+                        } else {
+//                            printf("non\r\n", str_client);  // for debug
+                            set_hvc_result("");
+                            hvc_send = false;
+                        }
+                    }
+#endif
                     if (face_cnt > 0) {
                         face_cnt--;
                         if (face_cnt == 0) {

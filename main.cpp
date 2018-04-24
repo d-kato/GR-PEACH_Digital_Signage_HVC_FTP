@@ -16,6 +16,9 @@
 #if (MBED_CONF_APP_FTP_CONNECT == 1) || (MBED_CONF_APP_NTP_CONNECT == 1)
 #include "network_proc.h"
 #endif
+#if(1) // feature-mbed-connector
+#include "mbed_client_proc.h"
+#endif
 
 /**** User Selection *********/
 #define SLIDE_DISPLAY_TIME                  (10000) /* The automatic page turning interval is changed. The unit is ms. */
@@ -96,10 +99,16 @@ static efect_info_t efect_info;
 static uint32_t total_file_num = 0;
 static telop_task_cfg_t telop_task_cfg = {&Display, 0xFFFF, 2};
 static Thread recognitionTask(osPriorityNormal, 1024 * 8);
+#if(1) // feature-mbed-connector
+#else
 static Thread telopTask(osPriorityNormal, 1024 * 2);
 static Thread mouseTask(osPriorityNormal, 1024 * 2);
+#endif
 #ifdef TouckKey_LCD_shield
 static Thread touchTask(osPriorityNormal, 1024 * 8);
+#endif
+#if(1) // feature-mbed-connector
+static Thread mbedclientTask(osPriorityNormal, 1024 * 8);
 #endif
 
 static const graphics_image_t* number_tbl[10] = {
@@ -121,7 +130,10 @@ static void IntCallbackFunc_LoVsync(DisplayBase::int_type_t int_type) {
     if (vsync_count > 0) {
         vsync_count--;
     }
+#if(1) // feature-mbed-connector
+#else
     telopTask.signal_set(1);
+#endif
 }
 
 static void Wait_Vsync(const int32_t wait_count) {
@@ -501,6 +513,14 @@ static void button_rise(void) {
     SetDispWaitTime(wk_disp_time);
 }
 
+#if(1) // feature-mbed-connector
+static setting_t setting;
+
+setting_t * get_setting_pointer(void) {
+    return &setting;
+}
+#endif
+
 int main(void) {
     int wait_time = 0;
     bool touch_key_in = false;
@@ -584,7 +604,10 @@ int main(void) {
         }
     }
 
+#if(1) // feature-mbed-connector
+#else
     setting_t setting;
+#endif
     setting.p_face_file = face_file_name;
     setting.p_disp_wait_time = &disp_wait_time;
     setting.p_rec_cfg = GetRecognitionSettingPointer();
@@ -594,15 +617,24 @@ int main(void) {
         strcpy(face_file_name, get_file_name(0));
     }
 
+#if(1) // feature-mbed-connector
+#else
     if (GetFileData(dummy_buf, 1, "telop.bin") == 1) {
         telop_data_save("/"MOUNT_NAME"/telop.bin");
         telopTask.start(callback(telop_task, &telop_task_cfg));
     }
+#endif
 
     recognitionTask.start(callback(recognition_task, &Display));
+#if(1) // feature-mbed-connector
+#else
     mouseTask.start(callback(mouse_task));
+#endif
 #ifdef TouckKey_LCD_shield
     touchTask.start(callback(touch_task));
+#endif
+#if(1) // feature-mbed-connector
+    mbedclientTask.start(callback(mbed_client_task));
 #endif
 
     button.rise(&button_rise);
@@ -631,6 +663,13 @@ int main(void) {
 #if (MBED_CONF_APP_NTP_CONNECT == 1)
         if (dissolve_seq == 0) {
             if (check_timetable(&total_file_num)) {
+                file_id_now = 0xfffffffe;
+            }
+        }
+#endif
+#if(1) // feature-mbed-connector
+        if (dissolve_seq == 0) {
+            if (check_new_playlist(&total_file_num)) {
                 file_id_now = 0xfffffffe;
             }
         }
