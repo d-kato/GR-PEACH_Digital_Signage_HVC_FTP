@@ -78,6 +78,8 @@ static int image_pos_y;
 
 #if(1) // feature-mbed-connector
 static char str_client[256];
+static char str_expression[1024];
+static uint32_t total_expression[2][10][6];
 #endif
 
 /****** Image Recognition ******/
@@ -356,8 +358,11 @@ void recognition_task(DisplayBase * p_display) {
 #if(1) // feature-mbed-connector
     bool update_data = false;
     bool hvc_send = false;
+    bool expression_update = false;
     int wk_stb_retrycount = 0;
+    int expression_cnt = 0;
     str_client[0] = '\0';
+    memset(total_expression, 0, sizeof(total_expression));
 #endif
 
     int face_cnt = 0;
@@ -674,10 +679,12 @@ void recognition_task(DisplayBase * p_display) {
                             if (pHVCResult->executedFunc & HVC_ACTIV_EXPRESSION_ESTIMATION) {
                                 /* Expression */
                                 if (-128 != pHVCResult->fdResult.fcResult[i].expressionResult.score[0]) {
-                                    if (pHVCResult->fdResult.fcResult[i].expressionResult.topExpression > EX_SADNESS) {
-                                        pHVCResult->fdResult.fcResult[i].expressionResult.topExpression = 0;
+                                    INT32 topExpression = pHVCResult->fdResult.fcResult[i].expressionResult.topExpression;
+
+                                    if (topExpression > EX_SADNESS) {
+                                        topExpression = 0;
                                     }
-                                    switch (pHVCResult->fdResult.fcResult[i].expressionResult.topExpression) {
+                                    switch (topExpression) {
                                         case 1:  colour = 0x0000ffff; break;  /* white */
                                         case 2:  colour = 0x0000f0ff; break;  /* yellow */
                                         case 3:  colour = 0x000060ff; break;  /* orange */
@@ -685,10 +692,20 @@ void recognition_task(DisplayBase * p_display) {
                                         case 5:  colour = 0x0000fff4; break;  /* blue */
                                         default: colour = 0x0000ffff; break;  /* white */
                                     }
-                                    DrawString(pExStr[pHVCResult->fdResult.fcResult[i].expressionResult.topExpression], colour);
+                                    DrawString(pExStr[topExpression], colour);
 #if(1) // feature-mbed-connector
                                     if (pHVCResult->fdResult.fcResult[i].ageResult.confidence >= 20000) {
-                                        strcat(str_client, pExStr[pHVCResult->fdResult.fcResult[i].expressionResult.topExpression]);
+                                        strcat(str_client, pExStr[topExpression]);
+                                        // taotal expression
+                                        uint32_t generation = pHVCResult->fdResult.fcResult[i].ageResult.age / 10;
+                                        uint32_t gender;
+                                        if (pHVCResult->fdResult.fcResult[i].genderResult.gender == 1) {
+                                            gender = 0;
+                                        } else {
+                                            gender = 1;
+                                        }
+                                        total_expression[gender][generation][topExpression]++;
+                                        expression_update = true;
                                     }
 #endif
                                 }
@@ -715,6 +732,57 @@ void recognition_task(DisplayBase * p_display) {
 //                            printf("non\r\n", str_client);  // for debug
                             set_hvc_result("");
                             hvc_send = false;
+                        }
+                    }
+
+                    expression_cnt++;
+                    if (expression_cnt >= 100) {
+                        expression_cnt = 0;
+
+                        if (expression_update) {
+                            expression_update = false;
+                            str_expression[0] = '\0';
+                            char gender_char;
+                            for (int i = 0; i < 2; i++) {
+                                if (i == 0) {
+                                    gender_char = 'M';
+                                } else {
+                                    gender_char = 'F';
+                                }
+                                sprintf(&str_expression[strlen(str_expression)],
+                                       "{%c0-19:%lu,%lu,%lu,%lu,%lu}", gender_char,
+                                       total_expression[i][0][1] + total_expression[i][1][1],
+                                       total_expression[i][0][2] + total_expression[i][1][2],
+                                       total_expression[i][0][3] + total_expression[i][1][3],
+                                       total_expression[i][0][4] + total_expression[i][1][4],
+                                       total_expression[i][0][5] + total_expression[i][1][5]);
+
+                                sprintf(&str_expression[strlen(str_expression)],
+                                       "{%c20-39:%lu,%lu,%lu,%lu,%lu}", gender_char,
+                                       total_expression[i][2][1] + total_expression[i][3][1],
+                                       total_expression[i][2][2] + total_expression[i][3][2],
+                                       total_expression[i][2][3] + total_expression[i][3][3],
+                                       total_expression[i][2][4] + total_expression[i][3][4],
+                                       total_expression[i][2][5] + total_expression[i][3][5]);
+
+                                sprintf(&str_expression[strlen(str_expression)],
+                                       "{%c40-59:%lu,%lu,%lu,%lu,%lu}", gender_char,
+                                       total_expression[i][4][1] + total_expression[i][5][1],
+                                       total_expression[i][4][2] + total_expression[i][5][2],
+                                       total_expression[i][4][3] + total_expression[i][5][3],
+                                       total_expression[i][4][4] + total_expression[i][5][4],
+                                       total_expression[i][4][5] + total_expression[i][5][5]);
+
+                                sprintf(&str_expression[strlen(str_expression)],
+                                       "{%c60+:%lu,%lu,%lu,%lu,%lu}", gender_char,
+                                       total_expression[i][6][1] + total_expression[i][7][1] + total_expression[i][8][1] + total_expression[i][9][1],
+                                       total_expression[i][6][2] + total_expression[i][7][2] + total_expression[i][8][2] + total_expression[i][9][2],
+                                       total_expression[i][6][3] + total_expression[i][7][3] + total_expression[i][8][3] + total_expression[i][9][3],
+                                       total_expression[i][6][4] + total_expression[i][7][4] + total_expression[i][8][4] + total_expression[i][9][4],
+                                       total_expression[i][6][5] + total_expression[i][7][5] + total_expression[i][8][5] + total_expression[i][9][5]);
+                            }
+//                            printf("%s\r\n", str_expression); // for debug
+                            set_total_expression(str_expression);
                         }
                     }
 #endif

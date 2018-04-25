@@ -66,6 +66,11 @@ public:
         setting_res = hvc_inst->create_dynamic_resource("8", "setting", M2MResourceInstance::STRING, true);
         setting_res->set_operation(M2MBase::POST_ALLOWED);
         setting_res->set_execute_function(execute_callback(this, &HvcResource::set_seting));
+
+        // total_expression
+        total_expression_res = hvc_inst->create_dynamic_resource("9", "total_expression", M2MResourceInstance::STRING, true);
+        total_expression_res->set_operation(M2MBase::GET_ALLOWED);
+        total_expression_res->set_value((uint8_t*)"", 1);
     }
 
     ~HvcResource() {
@@ -75,7 +80,7 @@ public:
         return hvc_object;
     }
 
-    void handle_string_send(char * addr, int size) {
+    void set_hvc_result(char * addr, int size) {
         // tell the string to connector
         hvc_res->set_value((uint8_t *)addr, size);
     }
@@ -101,6 +106,11 @@ public:
         return false;
     }
 
+    void set_total_expression(char * addr, int size) {
+        // tell the string to connector
+        total_expression_res->set_value((uint8_t *)addr, size);
+    }
+
 private:
     M2MObject* hvc_object;
     M2MResource* start_up_res;
@@ -108,6 +118,7 @@ private:
     M2MResource* index_file_res;
     M2MResource* image_list_res;
     M2MResource* setting_res;
+    M2MResource* total_expression_res;
     bool index_file_update;
     bool playlist_update;
 
@@ -140,7 +151,11 @@ private:
 HvcResource hvc_resource;
 
 void set_hvc_result(char * str) {
-    hvc_resource.handle_string_send(str, strlen(str) + 1);
+    hvc_resource.set_hvc_result(str, strlen(str) + 1);
+}
+
+void set_total_expression(char * str) {
+    hvc_resource.set_total_expression(str, strlen(str) + 1);
 }
 
 bool check_new_playlist(uint32_t * p_total_file_num) {
@@ -181,9 +196,9 @@ Add MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES and MBEDTLS_TEST_NULL_ENTROPY in mbed_app
     printf("\nStarting mbed Client example in ");
 
 #if defined (MESH) || (MBED_CONF_LWIP_IPV6_ENABLED==true)
-    printf("IPv6 mode\n");
+    printf("IPv6 mode\r\n");
 #else
-    printf("IPv4 mode\n");
+    printf("IPv4 mode\r\n");
 #endif
 
 #if defined(TARGET_RZ_A1H) && (MBED_CONF_APP_NETWORK_INTERFACE == WIFI_BP3595)
@@ -194,10 +209,15 @@ Add MBEDTLS_NO_DEFAULT_ENTROPY_SOURCES and MBEDTLS_TEST_NULL_ENTROPY in mbed_app
     Thread::wait(5);
 #endif
 
-    NetworkInterface* network = easy_connect(true);
-    if (network == NULL) {
-        printf("\nConnection to Network Failed - exiting application...\n");
-        return;
+    NetworkInterface* network = NULL;
+
+    while (true) {
+        network = easy_connect(true);
+        if (network != NULL) {
+            break;
+        }
+        printf("\r\nConnection to Network Failed - exiting application...\r\n");
+        Thread::wait(500);
     }
 
     // Create endpoint interface to manage register and unregister
