@@ -39,7 +39,7 @@
 #define FRAME_BUFFER_BYTE_PER_PIXEL         (2)
 #define FRAME_BUFFER_STRIDE                 (((LCD_PIXEL_WIDTH * FRAME_BUFFER_BYTE_PER_PIXEL) + 31u) & ~31u)
 
-#define MAX_JPEG_SIZE                       (1024 * 450)
+#define MAX_JPEG_SIZE                       (1024 * 400)
 
 #define MOUNT_NAME                          "storage"
 
