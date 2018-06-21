@@ -17,6 +17,7 @@ size_t GetFileData(uint8_t * p_buf, size_t size, const char * file_name) {
     sprintf(file_path, "%s/%s", mount_path_cpy, file_name);
     fp = fopen(file_path, "r");
     if (fp != NULL) {
+        setvbuf(fp, NULL, _IONBF, 0); // unbuffered
         read_size = fread(p_buf, sizeof(char), size, fp);
         fclose(fp);
     }
