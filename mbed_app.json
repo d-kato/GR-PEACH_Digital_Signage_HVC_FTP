@@ -12,6 +12,10 @@
             "help": "NTP SERVER PORT (Required only for ntp-connect=1)",
             "value": "123"
         },
+        "ntp-time-difference": {
+            "help": "Time difference (Required only for ntp-connect=1)",
+            "value": "(60 * 60 * 9)"
+        },
         "ftp-connect":{
             "help": "0:disable 1:enable",
             "value": "0"
@@ -52,6 +56,18 @@
             "help": "WiFi Security (Required only for network-interface=wifi)",
             "value": "NSAPI_SECURITY_WPA2"
         },
+        "ip-address": {
+            "help": "IP ADDRESS (Required only for ftp-connect=1)",
+            "value": null
+        },
+        "subnet-mask": {
+            "help": "SUBNET MASK (Required only for ftp-connect=1)",
+            "value": null
+        },
+        "default-gateway": {
+            "help": "DEFAULT GATEWAY (Required only for ftp-connect=1)",
+            "value": null
+        },
         "camera":{
             "help": "0:disable 1:enable",
             "value": "0"
@@ -71,6 +87,11 @@
         "audio-camera-shield":{
             "help": "(for GR-PEACH) 0:not use 1:use",
             "value": "0"
+        }
+    },
+    "target_overrides": {
+        "*": {
+            "target.macros_add": ["MBED_CONF_APP_MAIN_STACK_SIZE=16384"]
         }
     }
 }

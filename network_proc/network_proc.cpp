@@ -57,63 +57,63 @@ bool network_connect(const char * mount_path, SdUsbConnect * p_storage) {
     DrawDebugLog("Network Setup OK\r\n");
 
 #if (MBED_CONF_APP_NTP_CONNECT == 1)
-    {
+    while (true) {
         NTPClient ntp(&network);
 
+        DrawDebugLog("Connecting to NTPServer...\r\n");
         ntp.set_server((char*)MBED_CONF_APP_NTP_ADDRESS, MBED_CONF_APP_NTP_PORT);
         time_t timestamp = ntp.get_timestamp();
         if (timestamp < 0) {
             DrawDebugLog("An error occurred when getting the time. %ld\r\n", timestamp);
+            Thread::wait(500);
         } else {
             set_time(timestamp);
-            time_t seconds = time(NULL) + (60 * 60 * 9); // JST
+            time_t seconds = time(NULL) + (MBED_CONF_APP_NTP_TIME_DIFFERENCE);
             DrawDebugLog("Current time is %s\r\n", ctime(&seconds));
+            break;
         }
     }
 #endif
 #if (MBED_CONF_APP_FTP_CONNECT == 1)
-    {
-        bool ret = false;
-        char* token = NULL;
-        char* savept = NULL;
+    while (true) {
+        FTPClient myFTP(&network, mount_path);
+        char* token;
+        char* savept;
 
-        while (ret == false) {
-            FTPClient myFTP(&network, mount_path);
-
-            //Configure the display driver
-            DrawDebugLog("Connecting to FTPServer...\r\n");
-            if (myFTP.open(MBED_CONF_APP_FTP_IP_ADDRESS, MBED_CONF_APP_FTP_PORT,
-                           MBED_CONF_APP_FTP_USER, MBED_CONF_APP_FTP_PASSWORD)) {
-                char * filelist = new char[1024];
-                DrawDebugLog("Connect Success\r\n");
-                if (filelist == NULL) {
-                    DrawDebugLog("Memory Allocation Error : %08x\n", 1024);
-                } else {
-                    DrawDebugLog("Formatting storage...\r\n");
-                    p_storage->format();
-                    DrawDebugLog("done\r\n");
-
-                    memset(filelist, 0, 1024);
-                    myFTP.cd((char*)MBED_CONF_APP_FTP_DIRECTORY);
-                    myFTP.ls(filelist, 1024);
-                    token = filelist;
-                    savept = NULL;
-                    while (token) {
-                        token = strtok_r(token,"\r\n", &savept);
-                        if (token != NULL) {
-                            DrawDebugLog("Get File:%s\r\n",token);
-                            myFTP.get(token);
-                            token = savept;
-                        }
-                    }
-                    myFTP.quit();
-                    DrawDebugLog("Quit FTPServer\r\n");
-                    delete[] filelist;
-                    ret = true;
-                }
+        //Configure the display driver
+        DrawDebugLog("Connecting to FTPServer...\r\n");
+        if (myFTP.open(MBED_CONF_APP_FTP_IP_ADDRESS, MBED_CONF_APP_FTP_PORT,
+                       MBED_CONF_APP_FTP_USER, MBED_CONF_APP_FTP_PASSWORD)) {
+            char * filelist = new char[1024];
+            DrawDebugLog("Connect Success\r\n");
+            if (filelist == NULL) {
+                DrawDebugLog("Memory Allocation Error : %08x\n", 1024);
             } else {
-                DrawDebugLog("Connect error\r\n");
+                DrawDebugLog("Formatting storage...\r\n");
+                p_storage->format();
+                DrawDebugLog("done\r\n");
+
+                memset(filelist, 0, 1024);
+                myFTP.cd((char*)MBED_CONF_APP_FTP_DIRECTORY);
+                myFTP.ls(filelist, 1024);
+                token = filelist;
+                savept = NULL;
+                while (token) {
+                    token = strtok_r(token,"\r\n", &savept);
+                    if (token != NULL) {
+                        DrawDebugLog("Get File:%s\r\n",token);
+                        myFTP.get(token);
+                        token = savept;
+                    }
+                }
+                myFTP.quit();
+                DrawDebugLog("Quit FTPServer\r\n");
+                delete[] filelist;
+                break;
             }
+        } else {
+            DrawDebugLog("Connect error\r\n");
+            Thread::wait(500);
         }
     }
 #endif

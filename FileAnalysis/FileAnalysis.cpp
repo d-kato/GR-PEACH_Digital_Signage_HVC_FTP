@@ -73,8 +73,6 @@ uint32_t FileAnalysis(const char * index_file) {
     sprintf(file_path, "%s/%s", mount_path_cpy, index_file);
     fp = fopen(file_path, "r");
     if (fp != NULL) {
-        char* token = NULL;
-        char* savept = NULL;
         char * work_buff = new char[1024];
 
         if (work_buff == NULL) {

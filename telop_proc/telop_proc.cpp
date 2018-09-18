@@ -2,24 +2,22 @@
 #include "DisplayBace.h"
 #include "telop_proc.h"
 #include "EasyAttach_CameraAndLCD.h"
-#include "FlashAccess.h"
 #include "dcache-control.h"
 #include "DisplayDebugLog.h"
 
 /* TELOP BUFFER Parameter GRAPHICS_LAYER_3 */
 #define TELOP_BUFFER_BYTE_PER_PIXEL  (2u)
 
-#define FLASH_START_ADDR             (0x200000)
-#define FLASH_END_ADDR               (0x800000)
+#define FLASH_START_ADDR             (0x18200000)
+#define FLASH_END_ADDR               (0x187FFFFF)
 #define BUFF_SIZE                    (256)
 
 #define TELOP_START_ADDR             (FLASH_START_ADDR)
-#define TELOP_TBL_TOP                (TELOP_START_ADDR + 0x18000000)
-#define TELOP_DATA_ADDR              (TELOP_TBL_TOP + 32)
+#define TELOP_DATA_ADDR              (TELOP_START_ADDR + 32)
 
 static uint32_t telop_data_idx = 0;
 static uint32_t telop_data_size;
-static FlashAccess flash;
+static FlashIAP flash;
 
 static uint8_t get_next_data(void) {
     uint8_t ret = 0;
@@ -41,8 +39,9 @@ void telop_data_save(const char * file_name) {
     bool loop_end = false;
     uint8_t * work_buff;
     uint32_t saved_file_idx = 0;
-    uint8_t * p_telop_tbl_top = (uint8_t *)TELOP_TBL_TOP;
+    uint8_t * p_telop_tbl_top = (uint8_t *)TELOP_START_ADDR;
     bool skip = false;
+    uint32_t sector_size;
 
     DrawDebugLog("Telop data check\r\n");
     work_buff = new uint8_t[BUFF_SIZE];
@@ -73,12 +72,13 @@ void telop_data_save(const char * file_name) {
         fp = fopen(file_name, "r");
         if (fp != NULL) {
             while (loop_end == false) {
-                flash.SectorErase(flash_addr);
-                for (int i = 0; i < 16; i++) {
+                sector_size = flash.get_sector_size(flash_addr);
+                flash.erase(flash_addr, sector_size);
+                for (uint32_t i = 0; i < (sector_size / BUFF_SIZE); i++) {
                     read_size = fread(work_buff, sizeof(char), BUFF_SIZE, fp);
-                    flash.PageProgram(flash_addr, work_buff, BUFF_SIZE);
+                    flash.program(work_buff, flash_addr, BUFF_SIZE);
                     flash_addr += BUFF_SIZE;
-                    if ((read_size < BUFF_SIZE) || (flash_addr >= FLASH_END_ADDR)) {
+                    if ((read_size < BUFF_SIZE) || (flash_addr > FLASH_END_ADDR)) {
                         loop_end = true;
                         break;
                     }
@@ -104,7 +104,7 @@ void telop_task(telop_task_cfg_t * p_cfg) {
     int wk_idx_2;
     uint32_t data_width;
     uint32_t data_height;
-    uint8_t * p_telop_tbl_top = (uint8_t *)TELOP_TBL_TOP;
+    uint8_t * p_telop_tbl_top = (uint8_t *)TELOP_START_ADDR;
     uint8_t * wk_data_top;
     uint8_t * user_frame_buffer_telop;
     uint32_t frame_buffer_size;

@@ -101,6 +101,7 @@ static Thread mouseTask(osPriorityNormal, 1024 * 2);
 #ifdef TouckKey_LCD_shield
 static Thread touchTask(osPriorityNormal, 1024 * 8);
 #endif
+static bool telopTask_started = false;
 
 static const graphics_image_t* number_tbl[10] = {
     number0_Img,
@@ -121,7 +122,9 @@ static void IntCallbackFunc_LoVsync(DisplayBase::int_type_t int_type) {
     if (vsync_count > 0) {
         vsync_count--;
     }
-    telopTask.signal_set(1);
+    if (telopTask_started) {
+        telopTask.signal_set(1);
+    }
 }
 
 static void Wait_Vsync(const int32_t wait_count) {
@@ -597,6 +600,7 @@ int main(void) {
     if (GetFileData(dummy_buf, 1, "telop.bin") == 1) {
         telop_data_save("/"MOUNT_NAME"/telop.bin");
         telopTask.start(callback(telop_task, &telop_task_cfg));
+        telopTask_started = true;
     }
 
     recognitionTask.start(callback(recognition_task, &Display));

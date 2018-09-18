@@ -7,6 +7,7 @@
 
 #define DEBUG_LINE_HEIGHT (AsciiFont::CHAR_PIX_HEIGHT + 2)
 #define DEBUG_LINE_SIZE   (DEBUG_LINE_HEIGHT * DEBUG_BUFFER_STRIDE)
+#define DEBUF_LINE_MAX    (DEBUG_PIXEL_HEIGHT / DEBUG_LINE_HEIGHT - 1)
 
 /* DEBUG BUFFER Parameter GRAPHICS_LAYER_1 */
 #define DEBUG_BUFFER_BYTE_PER_PIXEL  (2u)
@@ -23,7 +24,6 @@ static uint8_t debug_log_buffer[DEBUG_BUFFER_STRIDE * DEBUG_PIXEL_HEIGHT]__attri
 static char string_buffer[64];
 static AsciiFont debug_font(debug_log_buffer, DEBUG_PIXEL_WIDTH, DEBUG_PIXEL_HEIGHT,
                             DEBUG_BUFFER_STRIDE, DEBUG_BUFFER_BYTE_PER_PIXEL, 0x00000000);
-static int debug_idx = 0;
 
 void StartDebugLog(DisplayBase * p_display, const int x, const int y) {
     DisplayBase::rect_t rect;
@@ -74,21 +74,15 @@ int DrawDebugLog(const char *format, ...) {
         *wk_pos = '\0';
     }
 
-    if (debug_idx >= 2) {
-        memcpy(&debug_log_buffer[DEBUG_LINE_SIZE * 0], &debug_log_buffer[DEBUG_LINE_SIZE * 1], DEBUG_LINE_SIZE);
-    }
-    if (debug_idx >= 1) {
-        memcpy(&debug_log_buffer[DEBUG_LINE_SIZE * 1], &debug_log_buffer[DEBUG_LINE_SIZE * 2], DEBUG_LINE_SIZE);
-    }
-    if (debug_idx < 2) {
-        debug_idx++;
+    for (uint32_t i = 0; i < DEBUF_LINE_MAX; i++) {
+        memcpy(&debug_log_buffer[DEBUG_LINE_SIZE * i], &debug_log_buffer[DEBUG_LINE_SIZE * (i + 1)], DEBUG_LINE_SIZE);
     }
 
-    debug_font.Erase(0x00000000, 0, DEBUG_LINE_HEIGHT * 2,
+    debug_font.Erase(0x00000000, 0, DEBUG_LINE_HEIGHT * DEBUF_LINE_MAX,
                      DEBUG_PIXEL_WIDTH, DEBUG_LINE_HEIGHT);
-    debug_font.Erase(0x000000c0, 0, DEBUG_LINE_HEIGHT * 2,
+    debug_font.Erase(0x000000c0, 0, DEBUG_LINE_HEIGHT * DEBUF_LINE_MAX,
                      (AsciiFont::CHAR_PIX_WIDTH * strlen(string_buffer) + 2), DEBUG_LINE_HEIGHT);
-    debug_font.DrawStr(string_buffer, 1, DEBUG_LINE_HEIGHT * 2 + 1, 0x0000ffff, 1);
+    debug_font.DrawStr(string_buffer, 1, DEBUG_LINE_HEIGHT * DEBUF_LINE_MAX + 1, 0x0000ffff, 1);
 
     return res;
 }
