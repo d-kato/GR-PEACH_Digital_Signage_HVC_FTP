@@ -17,7 +17,6 @@
 
 static uint32_t telop_data_idx = 0;
 static uint32_t telop_data_size;
-static FlashIAP flash;
 
 static uint8_t get_next_data(void) {
     uint8_t ret = 0;
@@ -71,6 +70,9 @@ void telop_data_save(const char * file_name) {
         DrawDebugLog("Telop data saving...\r\n");
         fp = fopen(file_name, "r");
         if (fp != NULL) {
+            FlashIAP flash;
+
+            flash.init();
             while (loop_end == false) {
                 sector_size = flash.get_sector_size(flash_addr);
                 flash.erase(flash_addr, sector_size);
@@ -84,6 +86,7 @@ void telop_data_save(const char * file_name) {
                     }
                 }
             }
+            flash.deinit();
             fclose(fp);
             DrawDebugLog("done\r\n");
         } else {
