@@ -371,7 +371,7 @@ void recognition_task(DisplayBase * p_display) {
     while (1) {
         /* try to connect a serial device */
         while (!serial.connect()) {
-            Thread::wait(200);
+            ThisThread::sleep_for(200);
         }
         serial.baud(921600);
         setting_req = true;
@@ -638,9 +638,9 @@ void recognition_task(DisplayBase * p_display) {
                             SetEfectReq(EVENT_FACE_OUT);
                         }
                     }
-                    Thread::wait(50);
+                    ThisThread::sleep_for(50);
                 } else {
-                    Thread::wait(200);
+                    ThisThread::sleep_for(200);
                 }
             }
         } while(0);
@@ -652,6 +652,6 @@ void recognition_task(DisplayBase * p_display) {
             face_cnt = 0;
             SetEfectReq(EVENT_FACE_OUT);
         }
-        Thread::wait(200);
+        ThisThread::sleep_for(200);
     }
 }

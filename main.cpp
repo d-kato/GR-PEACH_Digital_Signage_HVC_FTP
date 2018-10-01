@@ -141,7 +141,7 @@ static void Wait_Vsync(const int32_t wait_count) {
     /* Wait for the specified number of times Vsync occurs */
     vsync_count = wait_count;
     while (vsync_count > 0) {
-        Thread::wait(2);
+        ThisThread::sleep_for(2);
     }
 }
 
@@ -199,7 +199,7 @@ static void Update_LCD_Display(void) {
     Display.Graphics_Read_Change(DisplayBase::GRAPHICS_LAYER_0,
      (void *)frmbuf_info.buffer_address[frmbuf_info.draw_buffer_index]);
     Wait_Vsync(1);
-    Thread::wait(5);
+    ThisThread::sleep_for(5);
 }
 
 static void Swap_FrameBuffer(void) {
@@ -622,7 +622,7 @@ int main(void) {
 
     StartDebugLog(&Display, 5, (LCD_PIXEL_HEIGHT - DEBUG_PIXEL_HEIGHT - 5));
 
-    Thread::wait(50);
+    ThisThread::sleep_for(50);
     EasyAttach_LcdBacklight(true);
 
     DrawDebugLog("Finding a storage...\r\n");
@@ -637,7 +637,7 @@ int main(void) {
     {
         DrawDebugLog("Skip FTP Connect\r\n");
         DrawDebugLog("The logo display time is 3 seconds\r\n");
-        Thread::wait(3000);
+        ThisThread::sleep_for(3000);
     }
 
     SetMountPath("/"MOUNT_NAME);
@@ -651,7 +651,7 @@ int main(void) {
     if (total_file_num == 0) {
         DrawDebugLog("No file error\r\n");
         while (true) { 
-            Thread::wait(1000);
+            ThisThread::sleep_for(1000);
         }
     }
 
@@ -876,9 +876,9 @@ int main(void) {
          || (dissolve_seq != 0) || (file_id_now == 0xffffffff) || (mouse_info.disp_pos != false)
          || (mouse_info.disp_time != false) || (efect_info.scroll != false)) {
             wait_time = 0;
-            Thread::wait(5);
+            ThisThread::sleep_for(5);
         } else {
-            Thread::wait(50);
+            ThisThread::sleep_for(50);
             if ((file_id_now == 0) && (total_file_num <= 1)) {
                 /* do nothing */
             } else if (wait_time < 100000) {

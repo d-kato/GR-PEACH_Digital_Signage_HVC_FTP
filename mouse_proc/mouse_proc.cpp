@@ -93,7 +93,7 @@ void mouse_task(void) {
     while (1) {
         /* try to connect a USB mouse */
         while (!mouse.connect()) {
-            Thread::wait(500);
+            ThisThread::sleep_for(500);
         }
 
         /* when connected, attach handler called on mouse event */
@@ -101,7 +101,7 @@ void mouse_task(void) {
 
         /* wait until the mouse is disconnected */
         while (mouse.connected()) {
-            Thread::wait(500);
+            ThisThread::sleep_for(500);
         }
     }
 }

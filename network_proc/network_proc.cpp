@@ -65,7 +65,7 @@ bool network_connect(const char * mount_path, SdUsbConnect * p_storage) {
         time_t timestamp = ntp.get_timestamp();
         if (timestamp < 0) {
             DrawDebugLog("An error occurred when getting the time. %ld\r\n", timestamp);
-            Thread::wait(500);
+            ThisThread::sleep_for(500);
         } else {
             set_time(timestamp);
             time_t seconds = time(NULL) + (MBED_CONF_APP_NTP_TIME_DIFFERENCE);
@@ -113,7 +113,7 @@ bool network_connect(const char * mount_path, SdUsbConnect * p_storage) {
             }
         } else {
             DrawDebugLog("Connect error\r\n");
-            Thread::wait(500);
+            ThisThread::sleep_for(500);
         }
     }
 #endif
