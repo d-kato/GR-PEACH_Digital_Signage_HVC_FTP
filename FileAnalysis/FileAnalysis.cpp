@@ -49,7 +49,8 @@ uint32_t MemoryAnalysis(char * src_buf, const char *delim) {
     while (token) {
         token = strtok_r(token, delim, &savept);
         if (token != NULL) {
-            if (strstr(token,".jpg")) {
+            if ((strstr(token,".jpg") != NULL)
+             || (strstr(token,".mov") != NULL)) {
                 sprintf(file_path, "%s/%s", mount_path_cpy, token);
                 fp = fopen(file_path, "r");
                 if (fp != NULL) {
@@ -98,7 +99,8 @@ uint32_t FileAnalysis(const char * index_file) {
         d = opendir(file_path);
         if (d != NULL) {
             while ((p = readdir(d)) != NULL) {
-                if (strstr(p->d_name,".jpg")) {
+                if ((strstr(p->d_name,".jpg") != NULL)
+                 || (strstr(p->d_name,".mov") != NULL)) {
                     m_lpJpegfiles[file_index] = p->d_name;
                     file_index++;
                 }

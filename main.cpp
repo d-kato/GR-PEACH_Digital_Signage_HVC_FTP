@@ -16,6 +16,8 @@
 #if (MBED_CONF_APP_FTP_CONNECT == 1) || (MBED_CONF_APP_NTP_CONNECT == 1)
 #include "network_proc.h"
 #endif
+#include "EasyPlayback.h"
+#include "EasyDec_Mov.h"
 
 /**** User Selection *********/
 #define SLIDE_DISPLAY_TIME                  (10000) /* The automatic page turning interval is changed. The unit is ms. */
@@ -43,6 +45,9 @@
 
 #define MOUNT_NAME                          "storage"
 
+#define FILE_ERROR                          0
+#define FILE_JPG                            1
+#define FILE_MOV                            2
 
 typedef struct {
     int  pos_x;
@@ -102,6 +107,11 @@ static Thread mouseTask(osPriorityNormal, 1024 * 2);
 static Thread touchTask(osPriorityNormal, 1024 * 8);
 #endif
 static bool telopTask_started = false;
+static EasyPlayback AudioPlayer(EasyPlayback::AUDIO_TPYE_SOUNDLESS);
+static EasyPlayback AudioPlayer_file_read(EasyPlayback::AUDIO_TPYE_NULL);
+static bool mov_file_reload = false;
+static int file_type = FILE_ERROR;
+static int file_type_last = FILE_ERROR;
 
 static const graphics_image_t* number_tbl[10] = {
     number0_Img,
@@ -320,30 +330,48 @@ static void swap_file_buff(void) {
     file_id_next = wk_file_id;
 }
 
-static bool read_next_file(void) {
+static void MovCallBackFunc_1(void) {
+    AudioPlayer_file_read.skip();
+}
+
+static int read_next_file(void) {
     uint32_t wk_file_id;
-    bool ret = false;
+    int ret = FILE_ERROR;
 
     if (file_id_now < (total_file_num - 1)) {
         wk_file_id = file_id_now + 1;
     } else {
         wk_file_id = 0;
     }
-    if (wk_file_id != file_id_next) {
-        if (GetFileData(efect_info.p_pic_next, MAX_JPEG_SIZE, get_file_name(wk_file_id)) > 0) {
+    if (strstr(get_file_name(wk_file_id), ".mov") != NULL) {
+        if ((wk_file_id != file_id_next) || (mov_file_reload != false)) {
+            char file_path[64];
+
+            sprintf(file_path, "/%s/%s", MOUNT_NAME, get_file_name(wk_file_id));
+            EasyDec_Mov::attach(&MovCallBackFunc_1, efect_info.p_pic_next, MAX_JPEG_SIZE);
+            AudioPlayer_file_read.play(file_path);
+
             file_id_next = wk_file_id;
-            ret = true;
+            mov_file_reload = false;
         }
+        ret = FILE_MOV;
     } else {
-        ret = true;
+        if (wk_file_id != file_id_next) {
+            if (GetFileData(efect_info.p_pic_next, MAX_JPEG_SIZE, get_file_name(wk_file_id)) > 0) {
+                file_id_next = wk_file_id;
+                ret = FILE_JPG;
+            }
+        } else {
+            ret = FILE_JPG;
+        }
     }
 
     return ret;
 }
 
-static bool read_prev_file(void) {
+static int read_prev_file(void) {
     uint32_t wk_file_id;
-    bool ret = false;
+    int ret = FILE_ERROR;
 
     if (file_id_now >= total_file_num) {
         wk_file_id = 0;
@@ -352,13 +380,27 @@ static bool read_prev_file(void) {
     } else {
         wk_file_id = total_file_num - 1;
     }
-    if (wk_file_id != file_id_next) {
-        if (GetFileData(efect_info.p_pic_next, MAX_JPEG_SIZE, get_file_name(wk_file_id)) > 0) {
+    if (strstr(get_file_name(wk_file_id), ".mov") != NULL) {
+        if ((wk_file_id != file_id_next) || (mov_file_reload != false)) {
+            char file_path[64];
+
+            sprintf(file_path, "/%s/%s", MOUNT_NAME, get_file_name(wk_file_id));
+            EasyDec_Mov::attach(&MovCallBackFunc_1, efect_info.p_pic_next, MAX_JPEG_SIZE);
+            AudioPlayer_file_read.play(file_path);
+
             file_id_next = wk_file_id;
-            ret = true;
+            mov_file_reload = false;
         }
+        ret = FILE_MOV;
     } else {
-        ret = true;
+        if (wk_file_id != file_id_next) {
+            if (GetFileData(efect_info.p_pic_next, MAX_JPEG_SIZE, get_file_name(wk_file_id)) > 0) {
+                file_id_next = wk_file_id;
+                ret = FILE_JPG;
+            }
+        } else {
+            ret = FILE_JPG;
+        }
     }
 
     return ret;
@@ -388,9 +430,11 @@ void SetMove(int x, int y) {
         zoom_scroll(x, y);
         SetEfectReq(EVENT_DISP);
     } else {
-        efect_info.scroll = true;
-        efect_info.x_move += x;
-        SetEfectReq(EVENT_MOVE);
+        if ((efect_info.scroll != false) || (abs(x) >= 10)) {
+            efect_info.scroll = true;
+            efect_info.x_move += x;
+            SetEfectReq(EVENT_MOVE);
+        }
     }
 }
 
@@ -483,6 +527,9 @@ void SetEfectReq(int effect_type) {
     lock_event_req.lock();
     efect_info.event_req = effect_type;
     lock_event_req.unlock();
+    if ((effect_type != EVENT_DISP) && (effect_type != EVENT_NONE)) {
+        AudioPlayer.skip();
+    }
 }
 
 void SetEfectDisp(void) {
@@ -502,6 +549,27 @@ static void button_rise(void) {
         wk_disp_time = 0;
     }
     SetDispWaitTime(wk_disp_time);
+}
+
+static void MovCallBackFunc(void) {
+    draw_image((const graphics_image_t*)efect_info.p_pic_now,
+               efect_info.drow_pos_x,
+               efect_info.drow_pos_y,
+               efect_info.magnification);
+}
+
+static void MovPlayback(void) {
+    char file_path[64];
+
+    sprintf(file_path, "/%s/%s", MOUNT_NAME, get_file_name(file_id_now));
+    EasyDec_Mov::attach(&MovCallBackFunc, efect_info.p_pic_now, MAX_JPEG_SIZE);
+    AudioPlayer.play(file_path);
+    mov_file_reload = true;
+    if (efect_info.event_req == EVENT_NONE) {
+        efect_info.magnification = 1.0f;
+        file_type = read_next_file();
+        dissolve_seq = 1;
+    }
 }
 
 int main(void) {
@@ -611,6 +679,10 @@ int main(void) {
 
     button.rise(&button_rise);
 
+    // decoder setting
+    AudioPlayer.add_decoder<EasyDec_Mov>(".mov");
+    AudioPlayer_file_read.add_decoder<EasyDec_Mov>(".mov");
+
     DrawDebugLog("Start slide show\r\n");
     StopDebugLog(&Display);
 
@@ -649,21 +721,23 @@ int main(void) {
                 scroll_step = SCROLL_STEP_NUM;
                 if (wk_event_req == EVENT_NEXT) {
                     direction = SCROLL_DIRECTION_NEXT;
-                    read_next_file();
+                    file_type = read_next_file();
                 } else if (wk_event_req == EVENT_FACE_IN) {
                     direction = SCROLL_DIRECTION_NEXT;
                     last_file_id = file_id_now;
                     GetFileData(efect_info.p_pic_next, MAX_JPEG_SIZE, face_file_name);
                     file_id_next = 0xffffffff;
                     scroll_step = 5;
+                    file_type = FILE_JPG;
                 } else if (wk_event_req == EVENT_FACE_OUT) {
                     direction = SCROLL_DIRECTION_PREV;
                     GetFileData(efect_info.p_pic_next, MAX_JPEG_SIZE, get_file_name(last_file_id));
                     file_id_next = last_file_id;
                     scroll_step = 5;
+                    file_type = FILE_JPG;
                 } else {
                     direction = SCROLL_DIRECTION_PREV;
-                    read_prev_file();
+                    file_type = read_prev_file();
                 }
                 for (i = 1; i <= scroll_step; i++) {
                     draw_image_scroll((const graphics_image_t*)efect_info.p_pic_now,
@@ -671,14 +745,18 @@ int main(void) {
                                       (float)i / (float)scroll_step, direction);
                 }
                 swap_file_buff();
+                if (file_type == FILE_MOV) {
+                    MovPlayback();
+                }
+                file_type_last = file_type;
                 break;
             case EVENT_MOVE:
                 if ((efect_info.x_move * SCROLL_DIRECTION) >= 0) {
                     direction = SCROLL_DIRECTION_NEXT;
-                    read_next_file();
+                    file_type = read_next_file();
                 } else {
                     direction = SCROLL_DIRECTION_PREV;
-                    read_prev_file();
+                    file_type = read_prev_file();
                 }
                 draw_image_scroll((const graphics_image_t*)efect_info.p_pic_now,
                                   (const graphics_image_t*)efect_info.p_pic_next,
@@ -688,10 +766,10 @@ int main(void) {
                 type = 0;
                 if ((efect_info.x_move * SCROLL_DIRECTION) >= 0) {
                     direction = SCROLL_DIRECTION_NEXT;
-                    read_next_file();
+                    file_type = read_next_file();
                 } else {
                     direction = SCROLL_DIRECTION_PREV;
-                    read_prev_file();
+                    file_type = read_prev_file();
                 }
 
                 wk_abs_x_pos = abs(efect_info.x_move);
@@ -732,8 +810,13 @@ int main(void) {
                                           (const graphics_image_t*)efect_info.p_pic_next,
                                           (float)wk_abs_x_pos / (float)LCD_PIXEL_WIDTH, direction);
                     }
+                    file_type = file_type_last;
                 }
                 efect_info.x_move = 0;
+                if (file_type == FILE_MOV) {
+                    MovPlayback();
+                }
+                file_type_last = file_type;
                 break;
             case EVENT_NONE:
             case EVENT_DISP:
@@ -757,7 +840,7 @@ int main(void) {
                     wait_time = 0;
                 } else if ((disp_wait_time != 0) && (wait_time >= disp_wait_time)) {
                     efect_info.magnification = 1.0f;
-                    read_next_file();
+                    file_type = read_next_file();
                     dissolve_seq = 1;
                 } else {
                     /* do nothing */
@@ -769,6 +852,10 @@ int main(void) {
                     if (dissolve_seq >= DISSOLVE_STEP_NUM) {
                         dissolve_seq = 0;
                         swap_file_buff();
+                        if (file_type == FILE_MOV) { 
+                            MovPlayback();
+                        }
+                        file_type_last = file_type;
                     } else {
                         dissolve_seq++;
                     }
